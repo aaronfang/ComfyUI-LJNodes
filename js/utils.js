@@ -133,3 +133,78 @@ export function distributeNodesEvenly(nodes, direction) {
   canvas.dirty_canvas = true;
   canvas.dirty_bgcanvas = true;
 };
+
+export function alignSelectedNodes(nodes, direction) {
+  if (!nodes || Object.keys(nodes).length < 2) {
+    return;
+  }
+
+  const nodeArray = Object.values(nodes);
+  const gapX = 10; // Small gap between nodes from x
+  const gapY = 50; // Small gap between nodes from x
+
+  if (["up", "down"].includes(direction)) {
+    // Check for horizontal overlap
+    let overlapX = false;
+    for (let i = 0; i < nodeArray.length; i++) {
+      for (let j = i + 1; j < nodeArray.length; j++) {
+        if (!(nodeArray[i].pos[0] + nodeArray[i].size[0] < nodeArray[j].pos[0] || nodeArray[j].pos[0] + nodeArray[j].size[0] < nodeArray[i].pos[0])) {
+          overlapX = true;
+          break;
+        }
+      }
+      if (overlapX) break;
+    }
+
+    if (!overlapX) {
+      LGraphCanvas.alignNodes(nodes, direction === "up" ? "top" : "bottom");
+    } else {
+      // Sort nodes by their y position
+      nodeArray.sort((a, b) => a.pos[1] - b.pos[1]);
+
+      if (direction === "up") {
+        for (let i = 1; i < nodeArray.length; i++) {
+          nodeArray[i].pos[1] = nodeArray[i - 1].pos[1] + nodeArray[i - 1].size[1] + gapY;
+        }
+      } else {
+        for (let i = nodeArray.length - 2; i >= 0; i--) {
+          nodeArray[i].pos[1] = nodeArray[i + 1].pos[1] - nodeArray[i].size[1] - gapY;
+        }
+      }
+    }
+  } else if (["left", "right"].includes(direction)) {
+    // Check for vertical overlap
+    let overlapY = false;
+    for (let i = 0; i < nodeArray.length; i++) {
+      for (let j = i + 1; j < nodeArray.length; j++) {
+        if (!(nodeArray[i].pos[1] + nodeArray[i].size[1] < nodeArray[j].pos[1] || nodeArray[j].pos[1] + nodeArray[j].size[1] < nodeArray[i].pos[1])) {
+          overlapY = true;
+          break;
+        }
+      }
+      if (overlapY) break;
+    }
+
+    if (!overlapY) {
+      LGraphCanvas.alignNodes(nodes, direction === "left" ? "left" : "right");
+    } else {
+      // Sort nodes by their x position
+      nodeArray.sort((a, b) => a.pos[0] - b.pos[0]);
+
+      if (direction === "left") {
+        for (let i = 1; i < nodeArray.length; i++) {
+          nodeArray[i].pos[0] = nodeArray[i - 1].pos[0] + nodeArray[i - 1].size[0] + gapX;
+        }
+      } else {
+        for (let i = nodeArray.length - 2; i >= 0; i--) {
+          nodeArray[i].pos[0] = nodeArray[i + 1].pos[0] - nodeArray[i].size[0] - gapX;
+        }
+      }
+    }
+  }
+
+  // Update canvas
+  const canvas = LGraphCanvas.active_canvas;
+  canvas.dirty_canvas = true;
+  canvas.dirty_bgcanvas = true;
+}

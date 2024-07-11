@@ -3,7 +3,8 @@ import { clickedOnGroupTitle,
          addNodesToGroup, 
          getOutputNodesFromSelected, 
          defaultGetSlotMenuOptions, 
-         distributeNodesEvenly
+         distributeNodesEvenly, 
+         alignSelectedNodes
        } from "./utils.js";
 
 const LJNODES_NODE_TITLE_EDIT_TRIGGER = "Comfy.LJNodes.UIHelpers.NodeTitleEditTrigger";
@@ -54,37 +55,6 @@ app.registerExtension({
   },
 });
 
-let lastClickedTime;
-const processMouseDown = LGraphCanvas.prototype.processMouseDown;
-LGraphCanvas.prototype.processMouseDown = function (e) {
-  const currentTime = new Date().getTime();
-  if (lastClickedTime && (currentTime - lastClickedTime) < 300) {
-    lastClickedTime = null;
-
-    this.adjustMouseEvent(e);
-    this.selected_group = this.graph.getGroupOnPos(e.canvasX, e.canvasY);
-    if (this.selected_group) {
-      const group = this.selected_group;
-      const clickedOnTitle = clickedOnGroupTitle(e, group);
-      if (clickedOnTitle) {
-        let prompt = window.prompt("Title", group.title);
-        if (prompt) { group.title = prompt; }
-        this.allow_searchbox = false;
-        const returnVal = processMouseDown.apply(this, [...arguments]);
-        this.selected_group = null;
-        this.dragging_canvas = false;
-        return returnVal;
-      }
-    }
-    this.allow_searchbox = true;
-    return processMouseDown.apply(this, [...arguments]);
-  } else {
-    lastClickedTime = currentTime;
-    this.allow_searchbox = true;
-    return processMouseDown.apply(this, [...arguments]);
-  }
-};
-
 const origProcessKey = LGraphCanvas.prototype.processKey;
 LGraphCanvas.prototype.processKey = function(e) {
   if (!this.graph) {
@@ -131,30 +101,30 @@ LGraphCanvas.prototype.processKey = function(e) {
       }
     }
 
-    // Alt + W/S/A/D, Align Selected Nodes
-    if (e.altKey && ["w", "s", "a", "d"].includes(e.key)) {
+    // ctrl + ArrowKey, Align Selected Nodes
+    if (e.ctrlKey && ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
       const nodes = app.canvas.selected_nodes;
       if (Object.keys(nodes).length > 1) {
-        if (e.key === "w") {
-          LGraphCanvas.alignNodes(nodes, "top");
-        } else if (e.key === "s") {
-          LGraphCanvas.alignNodes(nodes, "bottom");
-        } else if (e.key === "a") {
-          LGraphCanvas.alignNodes(nodes, "left");
-        } else if (e.key === "d") {
-          LGraphCanvas.alignNodes(nodes, "right");
+        if (e.key === "ArrowUp") {
+          alignSelectedNodes(nodes, "up");
+        } else if (e.key === "ArrowDown") {
+          alignSelectedNodes(nodes, "down");
+        }else if (e.key === "ArrowLeft") {
+          alignSelectedNodes(nodes, "left");
+        }else if (e.key === "ArrowRight") {
+          alignSelectedNodes(nodes, "right");
         }
         block_default = true;
       }
     }
 
-    // Alt + H/V, Distribute Vertical/Horizontal Spacing
-    if (e.altKey && ["h", "v"].includes(e.key)) {
+    // shift + ArrowKey, Distribute Vertical/Horizontal Spacing
+    if (e.shiftKey && ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
       const nodes = app.canvas.selected_nodes;
       if (Object.keys(nodes).length > 2) {
-        if (e.key === "h") {
+        if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
           distributeNodesEvenly(nodes, "horizontal");
-        } else if (e.key === "v") {
+        } else if (e.key === "ArrowUp" || e.key === "ArrowDown") {
           distributeNodesEvenly(nodes, "vertical");
         }
         block_default = true;

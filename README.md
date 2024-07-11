@@ -1,3 +1,9 @@
+# Changes:  
+
+- 删除双击鼠标左键打开搜索框
+- 对齐节点时，考虑到所选择节点的宽高，避免重叠
+
+
 # 🧈 ComfyUI-LJNodes
 
 A variety of custom nodes to enhance ComfyUI for a buttery smooth experience. (🚧WIP)
