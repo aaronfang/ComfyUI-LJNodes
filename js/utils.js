@@ -99,7 +99,6 @@ export function defaultGetSlotMenuOptions(slot) {
   return menu_info;
 }
 
-
 export function distributeNodesEvenly(nodes, direction) {
   if (!nodes) {
     return;
@@ -141,66 +140,120 @@ export function alignSelectedNodes(nodes, direction) {
 
   const nodeArray = Object.values(nodes);
   const gapX = 10; // Small gap between nodes from x
-  const gapY = 50; // Small gap between nodes from x
+  const gapY = 50; // Small gap between nodes from y
 
-  if (["up", "down"].includes(direction)) {
-    // Check for horizontal overlap
-    let overlapX = false;
+  const getNodeSize = (node) => {
+    if (node.flags?.collapsed) {
+      return [node._collapsed_width || LiteGraph.NODE_COLLAPSED_WIDTH, 0];
+    }
+    return node.size;
+  };
+
+  const checkOverlap = (axis) => {
     for (let i = 0; i < nodeArray.length; i++) {
       for (let j = i + 1; j < nodeArray.length; j++) {
-        if (!(nodeArray[i].pos[0] + nodeArray[i].size[0] < nodeArray[j].pos[0] || nodeArray[j].pos[0] + nodeArray[j].size[0] < nodeArray[i].pos[0])) {
-          overlapX = true;
-          break;
+        const sizeI = getNodeSize(nodeArray[i]);
+        const sizeJ = getNodeSize(nodeArray[j]);
+        if (axis === 'x') {
+          if (!(nodeArray[i].pos[0] + sizeI[0] < nodeArray[j].pos[0] || nodeArray[j].pos[0] + sizeJ[0] < nodeArray[i].pos[0])) {
+            return true;
+          }
+        } else {
+          if (!(nodeArray[i].pos[1] + sizeI[1] < nodeArray[j].pos[1] || nodeArray[j].pos[1] + sizeJ[1] < nodeArray[i].pos[1])) {
+            return true;
+          }
         }
       }
-      if (overlapX) break;
     }
+    return false;
+  };
 
-    if (!overlapX) {
-      LGraphCanvas.alignNodes(nodes, direction === "up" ? "top" : "bottom");
-    } else {
-      // Sort nodes by their y position
-      nodeArray.sort((a, b) => a.pos[1] - b.pos[1]);
+  const alignNodesWithoutOverlap = (nodes, direction) => {
+    const nodeArray = Object.values(nodes);
+    let alignPosition;
 
-      if (direction === "up") {
-        for (let i = 1; i < nodeArray.length; i++) {
-          nodeArray[i].pos[1] = nodeArray[i - 1].pos[1] + nodeArray[i - 1].size[1] + gapY;
-        }
+    switch (direction) {
+      case "left":
+        alignPosition = Math.min(...nodeArray.map(node => node.pos[0]));
+        nodeArray.forEach(node => node.pos[0] = alignPosition);
+        break;
+      case "right":
+        alignPosition = Math.max(...nodeArray.map(node => node.pos[0] + getNodeSize(node)[0]));
+        nodeArray.forEach(node => node.pos[0] = alignPosition - getNodeSize(node)[0]);
+        break;
+      case "up":
+        alignPosition = Math.min(...nodeArray.map(node => node.pos[1]));
+        nodeArray.forEach(node => node.pos[1] = alignPosition);
+        break;
+      case "down":
+        alignPosition = Math.max(...nodeArray.map(node => node.pos[1] + getNodeSize(node)[1]));
+        nodeArray.forEach(node => node.pos[1] = alignPosition - getNodeSize(node)[1]);
+        break;
+    }
+  };
+
+  switch (direction) {
+    case "left":
+      if (!checkOverlap('y')) {
+        alignNodesWithoutOverlap(nodes, "left");
       } else {
-        for (let i = nodeArray.length - 2; i >= 0; i--) {
-          nodeArray[i].pos[1] = nodeArray[i + 1].pos[1] - nodeArray[i].size[1] - gapY;
+        nodeArray.sort((a, b) => a.pos[0] - b.pos[0]);
+        let leftMost = nodeArray[0].pos[0];
+        for (let i = 0; i < nodeArray.length; i++) {
+          nodeArray[i].pos[0] = leftMost;
+          if (i < nodeArray.length - 1) {
+            leftMost += getNodeSize(nodeArray[i])[0] + gapX;
+          }
         }
       }
-    }
-  } else if (["left", "right"].includes(direction)) {
-    // Check for vertical overlap
-    let overlapY = false;
-    for (let i = 0; i < nodeArray.length; i++) {
-      for (let j = i + 1; j < nodeArray.length; j++) {
-        if (!(nodeArray[i].pos[1] + nodeArray[i].size[1] < nodeArray[j].pos[1] || nodeArray[j].pos[1] + nodeArray[j].size[1] < nodeArray[i].pos[1])) {
-          overlapY = true;
-          break;
-        }
-      }
-      if (overlapY) break;
-    }
+      break;
 
-    if (!overlapY) {
-      LGraphCanvas.alignNodes(nodes, direction === "left" ? "left" : "right");
-    } else {
-      // Sort nodes by their x position
-      nodeArray.sort((a, b) => a.pos[0] - b.pos[0]);
-
-      if (direction === "left") {
-        for (let i = 1; i < nodeArray.length; i++) {
-          nodeArray[i].pos[0] = nodeArray[i - 1].pos[0] + nodeArray[i - 1].size[0] + gapX;
-        }
+    case "right":
+      if (!checkOverlap('y')) {
+        alignNodesWithoutOverlap(nodes, "right");
       } else {
-        for (let i = nodeArray.length - 2; i >= 0; i--) {
-          nodeArray[i].pos[0] = nodeArray[i + 1].pos[0] - nodeArray[i].size[0] - gapX;
+        nodeArray.sort((a, b) => b.pos[0] - a.pos[0]);
+        let rightMost = nodeArray[0].pos[0] + getNodeSize(nodeArray[0])[0];
+        for (let i = 0; i < nodeArray.length; i++) {
+          const nodeWidth = getNodeSize(nodeArray[i])[0];
+          nodeArray[i].pos[0] = rightMost - nodeWidth;
+          if (i < nodeArray.length - 1) {
+            rightMost -= (nodeWidth + gapX);
+          }
         }
       }
-    }
+      break;
+
+    case "up":
+      if (!checkOverlap('x')) {
+        alignNodesWithoutOverlap(nodes, "up");
+      } else {
+        nodeArray.sort((a, b) => a.pos[1] - b.pos[1]);
+        let topMost = nodeArray[0].pos[1];
+        for (let i = 0; i < nodeArray.length; i++) {
+          nodeArray[i].pos[1] = topMost;
+          if (i < nodeArray.length - 1) {
+            topMost += getNodeSize(nodeArray[i])[1] + gapY;
+          }
+        }
+      }
+      break;
+
+    case "down":
+      if (!checkOverlap('x')) {
+        alignNodesWithoutOverlap(nodes, "down");
+      } else {
+        nodeArray.sort((a, b) => b.pos[1] - a.pos[1]);
+        let bottomMost = nodeArray[0].pos[1] + getNodeSize(nodeArray[0])[1];
+        for (let i = 0; i < nodeArray.length; i++) {
+          const nodeHeight = getNodeSize(nodeArray[i])[1];
+          nodeArray[i].pos[1] = bottomMost - nodeHeight;
+          if (i < nodeArray.length - 1) {
+            bottomMost -= (nodeHeight + gapY);
+          }
+        }
+      }
+      break;
   }
 
   // Update canvas
